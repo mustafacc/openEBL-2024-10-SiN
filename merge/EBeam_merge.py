@@ -23,8 +23,9 @@ cell_Height = 500e3
 cell_Gap_Width = 8e3
 cell_Gap_Height = 8e3
 chip_Width = 8650000
-chip_Height1 = 8490000
+# chip_Height1 = 8490000
 chip_Height2 = 8890000
+chip_Height2 = 9000000
 br_cutout_x = 7484000
 br_cutout_y = 898000
 br_cutout2_x = 7855000
@@ -172,7 +173,7 @@ top_cell.insert(CellInstArray(cell_date.cell_index(), t))
 
 # Origins for the layouts
 x,y = 110e3,cell_Height+cell_Gap_Height
-previous_top_FaML = None
+previous_bottom_FaML = None
 
 # Keep track of the width of the cells, for each column
 max_cell_Width = 0
@@ -340,8 +341,15 @@ for f in [f for f in files_in if '.oas' in f.lower() or '.gds' in f.lower()]:
                 r1.insert(iter1.shape().polygon.transformed(iter1.trans())) 
                 iter1.next()        
             r1.merge()
-            # print("   - Floorplan merged: %s" % r1)
-
+                
+            # Check that the design submission has a FloorPlan. If not, add one
+            Layer_FP = layout.find_layer(99,0)  # or use "layer"
+            r3 = pya.Region(subcell.begin_shapes_rec(Layer_FP))
+            if r3.is_empty():
+                print('  - WARNING: Cell %s did not have a Floor Plan, %s' % (subcell.name, f) )
+                log('  - WARNING: Cell %s did not have a Floor Plan, %s' % (subcell.name, f) )
+                subcell.shapes(Layer_FP).insert(subcell.bbox())
+                
             # offset for the facet-attached micro lenses
             if course == 'FaML':
                 x_offset = -100e3
@@ -363,16 +371,11 @@ for f in [f for f in files_in if '.oas' in f.lower() or '.gds' in f.lower()]:
                                     f[1] *= inst.trans
                                     found_instances.append(f) # .transform(inst.trans))
                     return found_instances
-                
-#                found_faml_instances = sub_instances(layout2.top_cells()[0], name = 'ebeam_dream_FaML_SiN_1550_BB')
                 found_faml_instances = sub_instances(subcell2, name = 'ebeam_dream_FaML_SiN_1550_BB')
-                #for f in found_faml_instances:
-                #    log('  - Found FaML instance: %s, %s' % (f.to_s(), f.cell.name))
-                found_faml_instances.sort(key=lambda x: -x[1].disp.y)
+                found_faml_instances.sort(key=lambda x: x[1].disp.y)
                 for f in found_faml_instances:
                     log('  - Found FaML instance (sorted): %s, %s' % (f[0].to_s(), f[0].cell.name))
-                top_FaML = found_faml_instances[0][1].disp.y
-
+                bottom_FaML = found_faml_instances[0][1].disp.y
             else:
                 x_offset = 0
 
@@ -398,12 +401,12 @@ for f in [f for f in files_in if '.oas' in f.lower() or '.gds' in f.lower()]:
 
             if course == 'FaML':
                 # Check and snap to 127 µm pitch
-                if previous_top_FaML:
-                    FaML_delta = top_FaML+y - previous_top_FaML
+                if previous_bottom_FaML:
+                    FaML_delta = bottom_FaML + y - previous_bottom_FaML
                     log('  - FaML count: %s' % (FaML_delta/127e3) )
                     if FaML_delta % 127e3 > 0:
                         # log('  - Adjancent designs do not have matching FaML pitch: %s error' % (FaML_delta) )
-                        y_add = 127e3 - FaML_delta % 127e3
+                        y_add =  - FaML_delta % 127e3 # + 127e3
                         log('  - shifting design up by %s µm, to have matching FaML pitch.' % (y_add/1e3) )
                         y += y_add
 
@@ -413,11 +416,6 @@ for f in [f for f in files_in if '.oas' in f.lower() or '.gds' in f.lower()]:
             cell_course.insert(CellInstArray(subcell2.cell_index(), t))
             
             log('  - Design placed at position: %s, %s' % (x,y) )
-
-            if course == 'FaML':
-                # record placement of FaML
-                previous_top_FaML = found_faml_instances[0][1].disp.y + y
-                log('  - top FaML position: %s' % (previous_top_FaML) )
                         
             # Measure the height of the cell that was added, and move up
             #y += max (cell_Height, subcell.bbox().height()) + cell_Gap_Height
@@ -450,6 +448,11 @@ for f in [f for f in files_in if '.oas' in f.lower() or '.gds' in f.lower()]:
             if x + cell_Width > br_cutout2_x and y < br_cutout2_y:
                 y = br_cutout2_y
             '''
+
+            if course == 'FaML':
+                # record placement of FaML
+                previous_bottom_FaML = found_faml_instances[0][1].disp.y + y
+                log('  - bottom FaML position: %s' % (bottom_FaML) )
         else:
             log("  - WARNING: Top cell not merged (%s)" % cell.name)
 
