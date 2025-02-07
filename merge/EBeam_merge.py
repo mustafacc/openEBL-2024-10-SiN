@@ -105,13 +105,15 @@ log('SiEPIC-Tools %s, layout merge, running KLayout 0.%s.%s ' % (SiEPIC.__versio
 current_time = now.strftime("%Y-%m-%d, %H:%M:%S local time")
 log("Date: %s" % current_time)
 
-files_in = []
+files_in = [os.path.join(path,"../framework", framework_file)]
 
+'''
 # Load all the GDS/OAS files from the "framework" folder:
 path2 = os.path.abspath(os.path.join(path,"../framework"))
 _, _, files = next(os.walk(path2), (None, None, []))
 for f in sorted(files):
     files_in.append(os.path.join(path2,f))
+'''
 
 # Load all the GDS/OAS files from the "submissions" folder:
 path2 = os.path.abspath(os.path.join(path,"../submissions"))
@@ -406,7 +408,7 @@ for f in [f for f in files_in if '.oas' in f.lower() or '.gds' in f.lower()]:
             def next_position(x, y, cell_Gap_Height, cell_Gap_Width, chip_Height, cell_Height, cell_Width):
                 # Measure the height of the cell that was added, and move up
                 y += cell_Gap_Height
-                if y + cell_Height > chip_Height:
+                if y > chip_Height:
                     y = cell_Height + cell_Gap_Height
                     x += cell_Width + cell_Gap_Width
                     cell_Width = 0
@@ -446,7 +448,7 @@ for f in [f for f in files_in if '.oas' in f.lower() or '.gds' in f.lower()]:
             else:
                 y += subcell.bbox().height() + cell_Gap_Height
             # move right and bottom when we reach the top of the chip
-            if y + cell_Height > chip_Height2:
+            if y > chip_Height2:
                 y = cell_Height + cell_Gap_Height
                 x += max_cell_Width + cell_Gap_Width
                 max_cell_Width = 0
